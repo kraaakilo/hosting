@@ -1,0 +1,49 @@
+name: Deploy to Tebi S3 on Commit
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: npm install -g pnpm # Supprimez ce bloc pour un site statique simple
+
+      - name: Install dependencies
+        run: pnpm install # Supprimez ce bloc pour un site statique simple
+
+      - name: Build project
+        run: pnpm run build  # Supprimez ce bloc pour un site statique simple
+
+      - name: Setup AWS config with checksum options
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/config <<EOF
+          [default]
+          region = us-east-1
+          request_checksum_calculation = WHEN_REQUIRED
+          response_checksum_validation = WHEN_REQUIRED
+          EOF
+
+      - name: Deploy to Tebi S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TEBI_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TEBI_AWS_SECRET_ACCESS_KEY }}
+          BUCKET_NAME: hosting.kraaakilo.com
+          LOCAL_DIR: dist  # Remplacez par votre dossier pour un site statique simple
+          ENDPOINT_URL: https://s3.tebi.io
+        run: |
+          aws s3 rm s3://$BUCKET_NAME --recursive --endpoint-url $ENDPOINT_URL
+          aws s3 cp $LOCAL_DIR s3://$BUCKET_NAME --recursive --endpoint-url $ENDPOINT_URL --acl public-read
